@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d223d">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Service & Sanitation Hub</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:#f4f6f8;color:#111827}
+header{background:#0d223d;color:#fff;padding:16px}
+header h1{margin:0;font-size:20px}header p{margin:2px 0 0;color:#9ca3af;font-size:13px}
+nav{display:flex;background:#e5e7eb;position:sticky;top:0;z-index:2}
+nav button{flex:1;padding:12px 2px;border:0;background:none;font-weight:600;color:#374151;font-size:13px}
+nav button.on{background:#fff;border-bottom:2px solid #2563eb}
+main{padding:14px;max-width:640px;margin:auto}
+h2{font-size:17px;margin:6px 0 10px}
+.card{background:#fff;padding:14px;border-radius:8px;margin-bottom:10px;box-shadow:0 1px 3px #0001}
+.lbl{font-size:12px;color:#6b7280;text-transform:uppercase}
+.val{font-size:24px;font-weight:700;margin-top:4px}
+.txt{font-size:14px;color:#4b5563;margin-top:4px}
+.warn{color:#b91c1c}.ok{color:#047857}
+input,select{width:100%;padding:10px;margin-bottom:10px;border:1px solid #d1d5db;border-radius:6px;font-size:15px;background:#fff}
+.row{display:flex;gap:6px;margin-bottom:10px}
+.opt{flex:1;padding:10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font-size:13px}
+.opt.on{background:#2563eb;color:#fff;border-color:#2563eb}
+.go{width:100%;padding:12px;border:0;border-radius:6px;background:#10b981;color:#fff;font-weight:700;font-size:16px}
+.quote{font-size:15px;font-weight:700;margin:0 0 10px}
+.item{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;padding:12px;border-radius:8px;margin-bottom:8px}
+.item b{display:block;font-size:16px}.item small{color:#6b7280;display:block}
+.badge{border:0;padding:6px 10px;border-radius:4px;font-size:12px;font-weight:600}
+.done{background:#d1fae5;color:#065f46}.pend{background:#ffedd5;color:#9a3412}
+.x{border:0;background:none;color:#9ca3af;font-size:20px;padding:4px 8px}
+.step button{border:0;background:#e5e7eb;padding:8px 11px;border-radius:6px;font-weight:700;margin-left:4px}
+.stock{font-weight:700;color:#2563eb}.low{color:#b91c1c}
+.hint{font-size:12px;color:#6b7280;margin:-4px 0 10px}
+.grid{display:grid;grid-template-columns:1.3fr repeat(4,1fr);gap:4px;align-items:center;font-size:12px}
+.grid input{margin:0;padding:8px 4px;text-align:center;font-size:14px}
+.bar{display:flex;justify-content:space-between;font-size:14px;padding:4px 0;border-bottom:1px solid #f1f5f9}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header><h1>Service &amp; Sanitation Hub</h1><p>Beta Management App</p></header>
+<nav id="nav">
+<button data-t="dash" class="on">Analytics</button>
+<button data-t="book">Bookings</button>
+<button data-t="prices">Prices</button>
+<button data-t="inv">Inventory</button>
+</nav>
+<main>
+<section id="dash"></section>
+<section id="book" class="hide">
+<h2>New Booking (POS)</h2>
+<div class="card">
+<input id="cn" placeholder="Client name">
+<input id="ad" placeholder="Address">
+<div class="row" id="svc"></div>
+<div id="binOpts">
+<select id="tier"></select>
+<select id="plan"></select>
+<select id="term"></select>
+<input id="bins" type="number" min="1" value="1" placeholder="Number of bins">
+</div>
+<p class="quote" id="quote"></p>
+<button class="go" id="add">Create Booking / Charge</button>
+</div>
+<h2>Jobs</h2>
+<p class="hint">Tap a status to mark a job done or pending.</p>
+<div id="jobs"></div>
+</section>
+<section id="prices" class="hide"></section>
+<section id="inv" class="hide"></section>
+</main>
+<script>
+// ---- Defaults: all editable in the Prices tab. Starting hypotheses only, validate against local quotes ----
+var TIERS = {A:'Higher-income areas', B:'Middle-income areas', C:'Lower-income areas'};
+var PLANS = ['Ad hoc','Monthly','Fortnightly','Weekly'];
+var VISITS = [1,1,2,4]; // visits per month
+var TERMS = {'Rolling (30 days notice)':0, '3-month fixed (5% off)':0.05, 'Annual prepaid (10% off)':0.10};
+var JOBS_PER_WORKER_PER_DAY = 6;
+var CHEM = 1; // inventory id of the sanitizing chemical, 1 litre per bin
+var KEY = 'service-hub-v2';
+var db = {
+  prices: {A:[110,85,70,55], B:[85,70,58,47], C:[60,50,42,0]}, // R per bin per visit; 0 = not offered
+  grass: 250, cost: 40, // grass cutting price; estimated cost per bin (R)
+  bookings: [
+    {id:1, client:'John Doe', address:'12 Main Rd', service:'Bin Sanitizing', tier:'B', plan:'Monthly', term:'Rolling (30 days notice)', bins:2, status:'Completed', amount:140},
+    {id:2, client:'Sipho Zulu', address:'8 Protea St', service:'Grass Cutting', tier:'B', plan:'Ad hoc', term:'Rolling (30 days notice)', bins:0, status:'Pending', amount:250}
+  ],
+  inventory: [
+    {id:1, item:'Sanitizing Chemical (Liters)', stock:40},
+    {id:2, item:'Mower Blades', stock:5}
+  ]
+};
+try { var s = JSON.parse(localStorage.getItem(KEY)); if (s && s.bookings && s.inventory && s.prices) db = s; } catch(e) {}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(db)); } catch(e) {} }
+function esc(t){ return String(t).replace(/[&<>"']/g, function(c){ return '&#'+c.charCodeAt(0)+';'; }); }
+var $ = function(id){ return document.getElementById(id); };
+var svcSel = 'Bin Sanitizing';
+var isBin = function(b){ return b.service==='Bin Sanitizing'; };
+
+function quote(){
+  if (svcSel==='Grass Cutting') return {ok:true, amount:db.grass, per:db.grass, bins:0, text:'Grass cutting: R'+db.grass};
+  var t=$('tier').value, pi=PLANS.indexOf($('plan').value), n=Math.max(1,parseInt($('bins').value)||1);
+  var base=db.prices[t][pi];
+  if (!base) return {ok:false, text:'This plan is not offered in this area. Choose another plan.'};
+  var disc = pi===0 ? 0 : TERMS[$('term').value];
+  var per = Math.round(base*(1-disc)); var amt = per*n;
+  var txt = 'R'+per+' per bin x '+n+' = R'+amt+' per visit';
+  if (VISITS[pi]>1) txt += ' (about R'+(amt*VISITS[pi])+'/month)';
+  return {ok:true, amount:amt, per:per, bins:n, text:txt};
+}
+function qUpdate(){
+  $('binOpts').classList.toggle('hide', svcSel==='Grass Cutting');
+  $('term').classList.toggle('hide', $('plan').value==='Ad hoc');
+  var q=quote(); $('quote').textContent=q.text; $('quote').className='quote'+(q.ok?'':' warn');
+}
+function fillForm(){
+  $('tier').innerHTML = Object.keys(TIERS).map(function(k){return '<option value="'+k+'">'+TIERS[k]+'</option>';}).join('');
+  $('plan').innerHTML = PLANS.map(function(p){return '<option>'+p+'</option>';}).join('');
+  $('term').innerHTML = Object.keys(TERMS).map(function(t){return '<option>'+t+'</option>';}).join('');
+}
+
+function render(){
+  var done=db.bookings.filter(function(b){return b.status==='Completed';});
+  var pend=db.bookings.filter(function(b){return b.status!=='Completed';});
+  var sum=function(a){return a.reduce(function(t,b){return t+b.amount;},0);};
+  var doneBin=done.filter(isBin), binsDone=doneBin.reduce(function(t,b){return t+b.bins;},0);
+  var margin=sum(doneBin)-binsDone*db.cost, mpct=sum(doneBin)?Math.round(margin/sum(doneBin)*100):0;
+  var allBin=db.bookings.filter(isBin), contract=allBin.filter(function(b){return b.plan!=='Ad hoc';});
+  var conv=allBin.length?Math.round(contract.length/allBin.length*100):0;
+  var under=pend.filter(function(b){return isBin(b)&&b.bins&&b.amount/b.bins<db.cost;}).length;
+  var workers=Math.ceil(pend.length/JOBS_PER_WORKER_PER_DAY);
+  var staff=pend.length===0?'No pending jobs. No extra staff needed.':workers<=1?pend.length+' pending job(s). One field worker can cover the queue.':pend.length+' pending jobs at '+JOBS_PER_WORKER_PER_DAY+' per worker per day needs '+workers+' workers. Consider adding '+(workers-1)+' extra.';
+  var low=db.inventory.filter(function(i){return i.stock<=5;});
+  var byTier=Object.keys(TIERS).map(function(k){
+    var r=db.bookings.filter(function(b){return b.tier===k;});
+    return '<div class="bar"><span>'+TIERS[k]+' ('+r.length+' jobs)</span><b>R '+sum(r)+'</b></div>';}).join('');
+  var byPlan=PLANS.map(function(p){
+    return '<div class="bar"><span>'+p+'</span><b>'+allBin.filter(function(b){return b.plan===p;}).length+'</b></div>';}).join('');
+  $('dash').innerHTML='<h2>Performance &amp; Projections</h2>'
+   +'<div class="card"><div class="lbl">Realized revenue (completed)</div><div class="val">R '+sum(done)+'</div></div>'
+   +'<div class="card"><div class="lbl">Expected revenue (pending)</div><div class="val">R '+sum(pend)+'</div></div>'
+   +'<div class="card"><div class="lbl">Bin-cleaning margin (completed)</div><div class="val '+(margin<0?'warn':'ok')+'">R '+margin+' ('+mpct+'%)</div><div class="txt">After an estimated R'+db.cost+' cost per bin. Set your real cost in Prices.</div></div>'
+   +(under?'<div class="card"><div class="txt warn">'+under+' pending booking(s) are priced below your cost per bin.</div></div>':'')
+   +'<div class="card"><div class="lbl">Revenue booked by area</div>'+byTier+'</div>'
+   +'<div class="card"><div class="lbl">Bin jobs by plan</div>'+byPlan+'<div class="txt">Contract share: '+conv+'% (ad hoc jobs are your pool to convert)</div></div>'
+   +'<div class="card"><div class="lbl">Jobs queued</div><div class="val">'+pend.length+'</div></div>'
+   +'<div class="card"><div class="lbl">Staff recommendation</div><div class="txt">'+staff+'</div></div>'
+   +(low.length?'<div class="card"><div class="lbl">Low stock</div>'+low.map(function(i){return '<div class="txt">'+esc(i.item)+': '+i.stock+' left</div>';}).join('')+'</div>':'');
+
+  $('svc').innerHTML=['Bin Sanitizing','Grass Cutting'].map(function(n){
+    return '<button class="opt'+(n===svcSel?' on':'')+'" data-s="'+n+'">'+n+'</button>';}).join('');
+
+  $('jobs').innerHTML=db.bookings.map(function(b){
+    var detail=isBin(b)?b.bins+' bin(s), '+TIERS[b.tier].split(' ')[0]+', '+b.plan+(b.plan!=='Ad hoc'?', '+b.term.split(' ')[0]:''):'Grass cutting';
+    return '<div class="item"><div style="flex:1"><b>'+esc(b.client)+'</b>'+(b.address?'<small>'+esc(b.address)+'</small>':'')
+     +'<small>'+detail+' - R'+b.amount+'</small></div>'
+     +'<button class="badge '+(b.status==='Completed'?'done':'pend')+'" data-tog="'+b.id+'">'+b.status+'</button>'
+     +'<button class="x" data-del="'+b.id+'" aria-label="Delete">&times;</button></div>';}).join('');
+
+  $('prices').innerHTML='<h2>Price Schedule (R per bin per visit)</h2><p class="hint">Starting hypotheses. Update after you collect local quotes. Enter 0 where a plan is not offered.</p>'
+   +'<div class="card"><div class="grid"><span></span>'+PLANS.map(function(p){return '<b>'+p+'</b>';}).join('')
+   +Object.keys(TIERS).map(function(k){return '<span>'+TIERS[k].split(' ')[0]+'</span>'+db.prices[k].map(function(v,i){
+      return '<input type="number" min="0" value="'+v+'" data-pr="'+k+':'+i+'">';}).join('');}).join('')+'</div></div>'
+   +'<div class="card"><div class="lbl">Grass cutting price (R per job)</div><input type="number" min="0" value="'+db.grass+'" data-grass="1" style="margin-top:6px"></div>'
+   +'<div class="card"><div class="lbl">Your cost per bin (R)</div><input type="number" min="0" value="'+db.cost+'" data-cost="1" style="margin-top:6px"><div class="txt">Staff + fuel + water + chemicals + overheads, divided by bins cleaned. Drives the margin figures.</div></div>'
+   +'<div class="card"><div class="lbl">Contract discounts</div><div class="txt">3-month fixed: 5% off. Annual prepaid: 10% off. Ad hoc has no discount.</div></div>';
+
+  $('inv').innerHTML='<h2>Asset &amp; Material Stock</h2><p class="hint">Completing a bin job uses 1 L of chemical per bin.</p>'
+   +db.inventory.map(function(i){return '<div class="item"><div><b>'+esc(i.item)+'</b><span class="stock'+(i.stock<=5?' low':'')+'">Stock: '+i.stock+'</span></div>'
+     +'<div class="step"><button data-adj="'+i.id+':-1">-</button><button data-adj="'+i.id+':1">+</button><button data-adj="'+i.id+':10">+10</button></div></div>';}).join('');
+  qUpdate();
+}
+
+function usageOf(b){ var u={}; if (isBin(b)) u[CHEM]=b.bins; return u; }
+function changeStock(u,sign){ db.inventory.forEach(function(i){ if(u[i.id]) i.stock=Math.max(0,i.stock+sign*u[i.id]); }); }
+function toggle(id){
+  var b=db.bookings.filter(function(x){return x.id===id;})[0]; if(!b) return;
+  var u=usageOf(b), completing=b.status!=='Completed';
+  if (completing) {
+    var short=Object.keys(u).some(function(k){var inv=db.inventory.filter(function(i){return i.id===Number(k);})[0]; return !inv||inv.stock<u[k];});
+    if (short){ alert('Not enough chemical to complete this job. Restock in the Inventory tab.'); return; }
+  }
+  changeStock(u, completing?-1:1);
+  b.status=completing?'Completed':'Pending';
+}
+
+document.addEventListener('change', function(e){
+  var d=e.target.dataset||{}, v=Math.max(0,Number(e.target.value)||0);
+  if (d.pr){ var p=d.pr.split(':'); db.prices[p[0]][Number(p[1])]=v; }
+  else if (d.grass) db.grass=v;
+  else if (d.cost) db.cost=v;
+  else return;
+  save(); render();
+});
+document.addEventListener('input', function(e){ if (['tier','plan','term','bins'].indexOf(e.target.id)>-1) qUpdate(); });
+document.addEventListener('click', function(e){
+  var t=e.target, d=t.dataset||{};
+  if (d.t){ ['dash','book','prices','inv'].forEach(function(k){$(k).classList.toggle('hide',k!==d.t);});
+    document.querySelectorAll('#nav button').forEach(function(x){x.classList.toggle('on',x===t);}); return; }
+  if (d.s) svcSel=d.s;
+  else if (d.tog) toggle(Number(d.tog));
+  else if (d.del){
+    var id=Number(d.del), b=db.bookings.filter(function(x){return x.id===id;})[0];
+    if (b && confirm('Delete '+b.client+"'s job?")){
+      if (b.status==='Completed') changeStock(usageOf(b),1);
+      db.bookings=db.bookings.filter(function(x){return x.id!==id;});
+    } else return;
+  }
+  else if (d.adj){ var p=d.adj.split(':'); db.inventory.forEach(function(i){ if(i.id===Number(p[0])) i.stock=Math.max(0,i.stock+Number(p[1])); }); }
+  else if (t.id==='add'){
+    var name=$('cn').value.trim(); if(!name) return;
+    var q=quote(); if(!q.ok){ alert(q.text); return; }
+    var grass=svcSel==='Grass Cutting';
+    db.bookings.unshift({id:Date.now(), client:name, address:$('ad').value.trim(), service:svcSel,
+      tier:$('tier').value, plan:grass?'Ad hoc':$('plan').value, term:$('term').value, bins:q.bins, status:'Pending', amount:q.amount});
+    $('cn').value=''; $('ad').value='';
+  } else return;
+  save(); render();
+});
+fillForm(); render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
+</script>
+</body>
+</html>
