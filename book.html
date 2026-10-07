@@ -1,0 +1,66 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0d223d"><title>Book a BlinkBin clean</title><meta property="og:title" content="BlinkBin | Wheelie-bin cleaning, Gqeberha"><meta property="og:description" content="Pressure-washed, sanitised bins at your gate. Book in a minute."><meta property="og:type" content="website"><meta property="og:image" content="https://clrbrandt.github.io/service-sanitation-hub/og-image.png"><meta property="og:url" content="https://clrbrandt.github.io/service-sanitation-hub/book.html"><link rel="icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:#f4f6f8;color:#111827}
+header{background:#0d223d;color:#fff;padding:16px}
+header h1{margin:0;font-size:20px}header p{margin:2px 0 0;color:#9ca3af;font-size:13px}
+nav{display:flex;background:#e5e7eb;position:sticky;top:0;z-index:2}
+nav button{flex:1;padding:12px 2px;border:0;background:none;font-weight:600;color:#374151;font-size:13px}
+nav button.on{background:#fff;border-bottom:2px solid #2563eb}
+main{padding:14px;max-width:640px;margin:auto}
+h2{font-size:17px;margin:6px 0 10px}
+.card{background:#fff;padding:14px;border-radius:8px;margin-bottom:10px;box-shadow:0 1px 3px #0001}
+.lbl{font-size:12px;color:#6b7280;text-transform:uppercase}
+.val{font-size:24px;font-weight:700;margin-top:4px}
+.txt{font-size:14px;color:#4b5563;margin-top:4px}
+.warn{color:#b91c1c}.ok{color:#047857}
+input,select{width:100%;padding:10px;margin-bottom:10px;border:1px solid #d1d5db;border-radius:6px;font-size:15px;background:#fff}
+.row{display:flex;gap:6px;margin-bottom:10px}
+.opt{flex:1;padding:10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font-size:13px}
+.opt.on{background:#2563eb;color:#fff;border-color:#2563eb}
+.go{width:100%;padding:12px;border:0;border-radius:6px;background:#10b981;color:#fff;font-weight:700;font-size:16px}
+.quote{font-size:15px;font-weight:700;margin:0 0 10px}
+.item{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;padding:12px;border-radius:8px;margin-bottom:8px}
+.item b{display:block;font-size:16px}.item small{color:#6b7280;display:block}
+.badge{border:0;padding:6px 10px;border-radius:4px;font-size:12px;font-weight:600}
+.done{background:#d1fae5;color:#065f46}.pend{background:#ffedd5;color:#9a3412}
+.x{border:0;background:none;color:#9ca3af;font-size:20px;padding:4px 8px}
+.step button{border:0;background:#e5e7eb;padding:8px 11px;border-radius:6px;font-weight:700;margin-left:4px}
+.stock{font-weight:700;color:#2563eb}.low{color:#b91c1c}
+.hint{font-size:12px;color:#6b7280;margin:-4px 0 10px}
+.grid{display:grid;grid-template-columns:1.3fr repeat(4,1fr);gap:4px;align-items:center;font-size:12px}
+.grid input{margin:0;padding:8px 4px;text-align:center;font-size:14px}
+.bar{display:flex;justify-content:space-between;font-size:14px;padding:4px 0;border-bottom:1px solid #f1f5f9}
+.hide{display:none}
+</style>
+</head><body><header style="display:flex;align-items:center;gap:12px"><img src="icon-192.png" alt="BlinkBin" style="width:46px;height:46px;border-radius:50%;background:#fff"><div><h1>BlinkBin</h1><p>Book your wheelie-bin clean</p></div></header><main>
+<div class="card" id="f">
+<input id="n" placeholder="Your name"><input id="p" type="tel" placeholder="Cell number (WhatsApp)">
+<select id="ty"><option>Home</option><option>Business</option></select><input id="a" placeholder="Street address"><select id="s"></select>
+<select id="sv" class="hide"><option>Bin Sanitizing</option></select>
+<div id="bo"><input id="b" type="number" min="1" value="1" placeholder="Number of bins"><select id="pl"></select></div>
+<select id="d"><option>Next available</option><option>Weekday</option><option>Saturday</option></select>
+<input id="nt" placeholder="Notes (gate, dog, access)"><input id="hp" class="hide" tabindex="-1" autocomplete="off">
+<p class="quote" id="q"></p>
+<label style="font-size:13px"><input id="c" type="checkbox" style="width:auto"> I agree that my details are used only to arrange and confirm this service (POPIA).</label>
+<button class="go" id="go">Request booking</button><p id="m" class="hint"></p></div></main>
+<script>
+const API='PASTE_WEB_APP_URL_HERE';
+const WA='27655013662'; // your WhatsApp number, e.g. 27821234567 (used until the backend is set up)
+const AREAS={B:['Summerstrand','Walmer','Mill Park','Humewood','Lorraine','Westering','Newton Park','Linton Grange','Sherwood','Other area'],C:['Bethelsdorp','Gelvandale','Helenvale','Korsten','Salt Lake','Booysens Park','Chatty','Rosedale','Algoa Park']};
+let PLANS=['Ad hoc','Monthly','Fortnightly','Weekly'];let PR=null;const $=i=>document.getElementById(i);
+const tier=()=>$('ty').value==='Business'?'A':Object.keys(AREAS).find(k=>AREAS[k].includes($('s').value));
+$('s').innerHTML=Object.values(AREAS).flat().map(x=>'<option>'+x+'</option>').join('');
+function fillPlans(){const cur=$('pl').value,t=tier();const ok=PLANS.filter((p,i)=>!(PR&&PR.prices&&PR.prices[t])||PR.prices[t][i]>0);$('pl').innerHTML=ok.map(p=>'<option value="'+p+'">'+(p==='Ad hoc'?'Ad hoc (once-off)':p)+'</option>').join('');if(ok.includes(cur))$('pl').value=cur;}
+fillPlans();
+function q(){const g=$('sv').value==='Grass Cutting';$('bo').classList.toggle('hide',g);let t='Final price confirmed by WhatsApp.';
+if(PR&&PR.prices){const u=g?PR.grass:PR.prices[tier()][PLANS.indexOf($('pl').value)],n=+$('b').value||1,v=g?u:u*n;t=v?(tier()==='C'?'We quote Northern Areas households by area, and community sponsors may reduce the price considerably. Your quote is confirmed on WhatsApp.':'Standard bins cost between R50 and R120 per bin per visit, depending on your area and plan (subsidised bins excluded). Your exact price is confirmed on WhatsApp.'):'That plan is not available in your area yet. Please choose another.';}$('q').textContent=t;}
+document.addEventListener('input',q);document.addEventListener('change',e=>{if(e.target.id==='ty'||e.target.id==='s'){fillPlans();q();}});fetch(API.indexOf('PASTE')===0?'prices.json?'+Date.now():API+'?action=prices').then(r=>r.json()).then(j=>{PR=j;if(j.plans&&j.plans.length)PLANS=j.plans;fillPlans();q();}).catch(q);q();
+$('go').onclick=function(){const o={action:'book',name:$('n').value.trim(),phone:$('p').value.trim(),address:$('a').value.trim(),suburb:$('s').value,tier:tier(),service:$('sv').value,
+bins:$('sv').value==='Grass Cutting'?0:+$('b').value||1,plan:$('sv').value==='Grass Cutting'?'Ad hoc':$('pl').value,day:$('d').value,notes:$('ty').value+($('nt').value?' | '+$('nt').value:''),hp:$('hp').value,consent:$('c').checked};
+if(!o.name||!o.address||o.phone.replace(/\D/g,'').length<10||!o.consent){$('m').textContent='Please complete name, a valid cell number, address and consent.';return;}
+if(API.indexOf('PASTE')===0){var m='Hi BlinkBin, I would like to book a bin clean: '+o.service+(o.bins?' ('+o.bins+' bin(s), '+o.plan+')':'')+'. Name: '+o.name+'. Cell: '+o.phone+'. Address: '+o.address+', '+o.suburb+'. Preferred: '+o.day+'.'+(o.notes?' Notes: '+o.notes:'');
+window.open('https://wa.me/'+WA+'?text='+encodeURIComponent(m));$('m').textContent='WhatsApp opened. Please tap Send to complete your request.';return;}
+$('go').disabled=true;fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(o)}).then(r=>r.json()).then(j=>{
+$('m').textContent=j.ok?'Thank you. We will WhatsApp you to confirm.':'Could not send. Please wait a minute and retry.';$('go').disabled=!!j.ok;}).catch(()=>{$('m').textContent='Network error. Please retry.';$('go').disabled=false;});};
+</script></body></html>
