@@ -1,0 +1,38 @@
+{
+ "prices": {
+  "A": [
+   90,
+   90,
+   90,
+   90
+  ],
+  "B": [
+   120,
+   120,
+   0,
+   0
+  ],
+  "C": [
+   40,
+   40,
+   0,
+   0
+  ]
+ },
+ "plans": [
+  "Ad hoc",
+  "Monthly",
+  "Fortnightly",
+  "Weekly"
+ ],
+ "tiers": {
+  "A": "Commercial",
+  "B": "Suburban homes",
+  "C": "Northern Areas (sponsored)"
+ },
+ "terms": {
+  "Rolling (30 days notice)": 0,
+  "3-month fixed": 0,
+  "Annual prepaid": 0
+ }
+}
